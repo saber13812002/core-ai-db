@@ -144,3 +144,67 @@ Create `plans/laravel-13-bootstrap.md` content as executed, recording exact vers
 - If PHP on PATH resolves to an older version than Herd ships, Artisan will fail in confusing ways. Always confirm `php -v` resolves to the Herd binary before scaffolding.
 - Herd Pro service credentials can differ from defaults; copy them from the panel rather than assuming `postgres` or `root`.
 - Boost installer is interactive; if it blocks in a non-interactive shell, fall back to publishing its guidelines manually.
+
+## Setup record (as executed)
+
+### Versions actually installed
+
+| Component | Version | Notes |
+| --- | --- | --- |
+| PHP | 8.5.5 | `C:\php855` (system PHP, not Herd's; XAMPP PHP 8.2.12 on PATH is too old for Laravel 13) |
+| Composer | 2.9.5 | |
+| Node | 24.14 | |
+| npm | 11.9 | |
+| git | 2.53 | |
+| laravel/laravel (skeleton) | v13.10.1 | laravel/framework ^13.17, resolved 13.32.0 |
+| Vite | 8.3.0 | via `npm run build` |
+| laravel/boost | v2.9.0 | dev dependency, plus laravel/mcp 1.0.0 and laravel/roster 1.0.0 |
+| predis/predis | v3.6.0 | chosen because no phpredis extension is available for the system PHP 8.5.5 |
+| Pint | via Laravel preset | `pint.json` = `{ "preset": "laravel" }` |
+
+### Deviations from the plan
+
+- **Step 4 (scaffold):** `laravel new` is broken on this machine (`laravel/installer` v5.32.0 crashes in `ProjectInstaller.php:69` on the `mkdir` call). Bypassed with `composer create-project laravel/laravel` into a temp sibling directory, then merged into the repo root with `robocopy /E /MOVE` (dotfiles included). The plan's PowerShell `Copy-Item` pattern was not needed because the shell is cmd.exe, not PowerShell.
+- **Step 4 (test framework):** PHPUnit kept, Pest not installed (no `--pest` flag was passed, per the clean-skeleton decision). `phpunit.xml` is self-contained: `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, so `php artisan test` passes without Herd.
+- **Step 6 (environment):** timezone is hardcoded as `'Asia/Tehran'` in [`config/app.php`](../config/app.php) (Laravel 13 has no `APP_TIMEZONE` env key); locales come from env: `APP_LOCALE=fa`, `APP_FALLBACK_LOCALE=en`, `APP_FAKER_LOCALE=fa_IR`. `SESSION_DRIVER=redis` added (Herd docs recommend it alongside cache/queue). `REDIS_CLIENT=predis` added to select the pure-PHP client. `extension=pdo_pgsql` was enabled in `C:\php855\php.ini` (the DLL shipped in `C:\php855\ext` but was not enabled; the skeleton only enabled `pdo_mysql` and `pdo_sqlite`).
+- **Step 2 (Herd Pro):** winget is not installed on this machine, so Herd Pro was installed from the official direct-download URL `https://herd.laravel.com/download/windows` (the `/download/latest/windows` URL returns an HTML redirect stub, not the installer; the real installer is a ~228 MB PE exe). Documented Herd Pro defaults from the official docs: PostgreSQL `127.0.0.1:5432`, user `root`, empty password, pgvector/PostGIS/pgrouting bundled, psql at `%USERPROFILE%\.config\herd\bin\services\postgresql\<VERSION>\bin`; Redis `127.0.0.1:6138` (not 6379), no password. Service creation via UI or `herd services:create`.
+- **Step 11 (Boost):** `boost:install` ran non-interactively as `php artisan boost:install --guidelines --skills --mcp --no-interaction`. Boost v2.9.0 writes skills to `.claude/skills/` and `.cursor/skills/`, MCP config to `.mcp.json` (and `.cursor/mcp.json`), and guidelines into `AGENTS.md` + `CLAUDE.md` (identical files). Project rules live in `.ai/rules/` (not `.ai/guidelines` as the plan stated), with an `index.md` mapping globs to rule files. Written by hand in the `RuleRepository` format: `index.md`, `general.md` (`**`), `models.md` (`app/Models/**`), `database.md` (`database/**`), encoding the design.md mandates (Cartesian-product output identity, mandatory second/page-level traceability, immutability, the nine required entities, git-like MasterPrompt versioning, EstimatedCost, QualityRate 0-100, FeedbackLog tied to prompt-model pairs).
+
+### Environment keys (`.env` / `.env.example`)
+
+```
+APP_NAME="AI Factory"
+APP_URL=http://localhost:8000
+APP_LOCALE=fa
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=fa_IR
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=core_ai_db
+DB_USERNAME=root
+DB_PASSWORD=
+SESSION_DRIVER=redis
+QUEUE_CONNECTION=redis
+CACHE_STORE=redis
+REDIS_CLIENT=predis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6138
+```
+
+### Commits
+
+| Commit | Message | Content |
+| --- | --- | --- |
+| `c86702e` | docs: commit design documents and bootstrap plan before scaffolding | design-*.md, laravel.md, plans/ |
+| `0fbac7e` | feat: clean Laravel 13 skeleton with PostgreSQL/Redis env, Pint, Boost agent rules | full skeleton, .ai/rules/, Boost artifacts, pint.json |
+
+Note: git identity is still the machine placeholder `Administrator <admin@example.com>` - the user should set `git config user.name` / `user.email` before pushing to GitHub (step 14).
+
+### Open items (blocked on Herd Pro install finishing)
+
+- Step 7: create `core_ai_db`, `php artisan migrate`, verify with `db:show` + `about`.
+- Step 8: Redis round-trip (cache write/read, queued job).
+- Step 12: smoke test the welcome route on `http://localhost:8000`.
+- Step 14: user hands over the GitHub repo URL; `git remote add origin <url>`, `git push -u origin main`.
