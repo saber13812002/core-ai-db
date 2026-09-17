@@ -15,7 +15,7 @@ Bring up a clean Laravel 13 application at the workspace root of `core-ai-db`, w
 | Cache and queue | Redis |
 | AI tooling | Laravel Boost plus project guidelines |
 | Formatter | Laravel Pint |
-| Local runtime | Laravel Herd Pro on Windows for PHP, PostgreSQL and Redis |
+| Local runtime | Originally Laravel Herd Pro; executed as standalone: system PHP 8.5.5, PostgreSQL 16 in WSL1, Redis 5.0.14.1 Windows service (see deviations) |
 | Git remote | Created by the user, URL handed over at the remote step |
 | Design docs | Stay at repo root and remain tracked in git |
 
@@ -160,6 +160,8 @@ Create `plans/laravel-13-bootstrap.md` content as executed, recording exact vers
 | Vite | 8.3.0 | via `npm run build` |
 | laravel/boost | v2.9.0 | dev dependency, plus laravel/mcp 1.0.0 and laravel/roster 1.0.0 |
 | predis/predis | v3.6.0 | chosen because no phpredis extension is available for the system PHP 8.5.5 |
+| PostgreSQL | 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) | inside WSL1 distro `coreaipg` (Ubuntu 24.04), 127.0.0.1:5432, trust auth, role `root`, db `core_ai_db` |
+| Redis | 5.0.14.1 (tporadowski Windows build) | Windows service "Redis", 127.0.0.1:6138, no password |
 | Pint | via Laravel preset | `pint.json` = `{ "preset": "laravel" }` |
 
 ### Deviations from the plan
@@ -167,7 +169,21 @@ Create `plans/laravel-13-bootstrap.md` content as executed, recording exact vers
 - **Step 4 (scaffold):** `laravel new` is broken on this machine (`laravel/installer` v5.32.0 crashes in `ProjectInstaller.php:69` on the `mkdir` call). Bypassed with `composer create-project laravel/laravel` into a temp sibling directory, then merged into the repo root with `robocopy /E /MOVE` (dotfiles included). The plan's PowerShell `Copy-Item` pattern was not needed because the shell is cmd.exe, not PowerShell.
 - **Step 4 (test framework):** PHPUnit kept, Pest not installed (no `--pest` flag was passed, per the clean-skeleton decision). `phpunit.xml` is self-contained: `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, so `php artisan test` passes without Herd.
 - **Step 6 (environment):** timezone is hardcoded as `'Asia/Tehran'` in [`config/app.php`](../config/app.php) (Laravel 13 has no `APP_TIMEZONE` env key); locales come from env: `APP_LOCALE=fa`, `APP_FALLBACK_LOCALE=en`, `APP_FAKER_LOCALE=fa_IR`. `SESSION_DRIVER=redis` added (Herd docs recommend it alongside cache/queue). `REDIS_CLIENT=predis` added to select the pure-PHP client. `extension=pdo_pgsql` was enabled in `C:\php855\php.ini` (the DLL shipped in `C:\php855\ext` but was not enabled; the skeleton only enabled `pdo_mysql` and `pdo_sqlite`).
-- **Step 2 (Herd Pro):** winget is not installed on this machine, so Herd Pro was installed from the official direct-download URL `https://herd.laravel.com/download/windows` (the `/download/latest/windows` URL returns an HTML redirect stub, not the installer; the real installer is a ~228 MB PE exe). Documented Herd Pro defaults from the official docs: PostgreSQL `127.0.0.1:5432`, user `root`, empty password, pgvector/PostGIS/pgrouting bundled, psql at `%USERPROFILE%\.config\herd\bin\services\postgresql\<VERSION>\bin`; Redis `127.0.0.1:6138` (not 6379), no password. Service creation via UI or `herd services:create`.
+- **Step 2 (Herd Pro) — CLOSED, not installed:** the machine is a nested Windows VM whose sandbox cannot pass UAC prompts or create Windows services interactively. A `herd --version` success report from the user could not be verified on this machine (no Herd files, no services, no processes anywhere on disk — `where /R C:` found nothing), so it was concluded to have come from a different machine session. The EDB PostgreSQL 18.6-2 Windows installer was investigated exhaustively as a fallback: it is NOT a standard Inno Setup build (full-file scan found no "Inno Setup Setup Data" signature), 7-Zip 26.02 can only read a 13 MB stub cab plus an unparseable 361 MB tail, innoextract 1.9 rejects it, and both `/extract=` switches die silently on the UAC self-elevation. **Windows-native PostgreSQL is definitively not installable from this sandbox.**
+- **Step 7 (PostgreSQL) — WSL1 route:** PostgreSQL 16.15 runs inside a **WSL1 Ubuntu 24.04** distro (WSL2 import failed with `HCS_E_HYPERV_NOT_INSTALLED` because the nested VM has no nested virtualization; WSL1 needs no hypervisor and, crucially, **shares the Windows host network namespace**, so the distro's `127.0.0.1:5432` IS Windows' `127.0.0.1:5432` — no port mapping needed).
+  - Distro: `coreaipg`, imported via `wsl --import coreaipg C:\Users\s.tabatabaei\wsl-pg\distro <rootfs> --version 1`. Rootfs: `ubuntu-noble-wsl-amd64-24.04lts.rootfs.tar.gz` (340 MB) from `https://cloud-images.ubuntu.com/wsl/releases/24.04/current/`.
+  - PostgreSQL installed via `apt-get install postgresql` (16.15, Ubuntu 24.04 package), cluster `16/main` on port 5432.
+  - Auth: `pg_hba.conf` set to `trust` for `host all all 127.0.0.1/32` and `::1/128` (dev machine, loopback-only). Role `root` created `SUPERUSER LOGIN` with no password — matches `.env` (`DB_USERNAME=root`, empty `DB_PASSWORD`).
+  - Database `core_ai_db` created, owned by `root`. Migrations applied (3 default: users/cache/jobs → 9 tables).
+  - Verified end to end from Windows with the app's own PHP: `PDO pgsql:host=127.0.0.1;port=5432` → `CONNECTED: PostgreSQL 16.15`, `php artisan migrate` green, `php artisan db:show` green.
+  - **Post-reboot operation:** WSL1 distros are not Windows services. After a VM reboot, start the database with:
+    ```
+    wsl -d coreaipg --user root -- service postgresql start
+    ```
+  - Setup script kept at `C:\Users\s.tabatabaei\wsl-pg\pg-setup.sh` (idempotent: pg_hba trust lines, listen_addresses, start cluster, role + db creation, TCP self-check).
+- **Step 2/7 (Redis) — standalone Windows service:** tporadowski Windows build 5.0.14.1 installed at `C:\Redis`, running as Windows service "Redis" (auto-start), bound to `127.0.0.1:6138` (matches Herd's non-default Redis port, so `.env` stays Herd-compatible), `maxmemory 256mb` / `allkeys-lru`, no password. This was the only Herd-compatible piece that could be installed from the sandbox (its installer is a standard Inno Setup build).
+- **Step 8 (Redis verification):** cache round-trip via `Cache::store('redis')->put/get` → `ok`; queue channel round-trip via raw `lpush`/`rpop` on `queues:default` → payload returned intact. `REDIS_CLIENT=predis` in use.
+- **Step 12 (smoke test):** port 8000 was occupied by an unrelated Python 3.13 process (PID 16904), so `php artisan serve --port=8001` was used; welcome route returned 200 with the Laravel wordmark. Dev server stopped afterwards.
 - **Step 11 (Boost):** `boost:install` ran non-interactively as `php artisan boost:install --guidelines --skills --mcp --no-interaction`. Boost v2.9.0 writes skills to `.claude/skills/` and `.cursor/skills/`, MCP config to `.mcp.json` (and `.cursor/mcp.json`), and guidelines into `AGENTS.md` + `CLAUDE.md` (identical files). Project rules live in `.ai/rules/` (not `.ai/guidelines` as the plan stated), with an `index.md` mapping globs to rule files. Written by hand in the `RuleRepository` format: `index.md`, `general.md` (`**`), `models.md` (`app/Models/**`), `database.md` (`database/**`), encoding the design.md mandates (Cartesian-product output identity, mandatory second/page-level traceability, immutability, the nine required entities, git-like MasterPrompt versioning, EstimatedCost, QualityRate 0-100, FeedbackLog tied to prompt-model pairs).
 
 ### Environment keys (`.env` / `.env.example`)
@@ -202,9 +218,8 @@ REDIS_PORT=6138
 
 Note: git identity is still the machine placeholder `Administrator <admin@example.com>` - the user should set `git config user.name` / `user.email` before pushing to GitHub (step 14).
 
-### Open items (blocked on Herd Pro install finishing)
+### Open items
 
-- Step 7: create `core_ai_db`, `php artisan migrate`, verify with `db:show` + `about`.
-- Step 8: Redis round-trip (cache write/read, queued job).
-- Step 12: smoke test the welcome route on `http://localhost:8000`.
-- Step 14: user hands over the GitHub repo URL; `git remote add origin <url>`, `git push -u origin main`.
+- **Step 14 (only remaining):** user hands over the GitHub repo URL; `git remote add origin <url>`, `git push -u origin main`.
+- Before pushing: set a real git identity — the machine placeholder `Administrator <admin@example.com>` is currently used.
+- Housekeeping (optional): the user-run `C:\Users\s.tabatabaei\pg-install.bat` EDB install produced no verifiable artifacts on this machine and should be deleted; up to 5 stale UAC "consent.exe" prompts from earlier installer attempts may sit on the desktop and should be dismissed.
