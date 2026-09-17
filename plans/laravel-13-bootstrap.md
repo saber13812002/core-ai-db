@@ -215,11 +215,18 @@ REDIS_PORT=6138
 | --- | --- | --- |
 | `c86702e` | docs: commit design documents and bootstrap plan before scaffolding | design-*.md, laravel.md, plans/ |
 | `0fbac7e` | feat: clean Laravel 13 skeleton with PostgreSQL/Redis env, Pint, Boost agent rules | full skeleton, .ai/rules/, Boost artifacts, pint.json |
+| `41ec925` | docs: record actual versions, deviations and open items in bootstrap plan | this file, first pass |
+| `cf13054` | docs: record WSL1 PostgreSQL + standalone Redis as executed, close open infra items | this file, infra record |
 
-Note: git identity is still the machine placeholder `Administrator <admin@example.com>` - the user should set `git config user.name` / `user.email` before pushing to GitHub (step 14).
+### Step 14 - Connect the remote (as executed)
+
+- Target: `https://github.com/saber13812002/core-ai-db.git`. Handle taken from sibling repo remotes under `c:\Users\s.tabatabaei\Documents\saberprojects` and confirmed against the user's browser session.
+- The repo did not exist on GitHub: anonymous API probes 404'd, and an authenticated `git ls-remote` with the stored GCM credential for `saber13812002@github.com` also returned `Repository not found` (GitHub answers `Authentication failed` for a bad token, so the stored credential was accepted).
+- The repo was created via `POST /user/repos` with that same stored credential (public, empty, `auto_init=false`), then `git push -u origin main` succeeded: all 4 commits, remote `main` @ `cf13054`, verified via `git ls-remote origin`.
+- The credential was used in the remote URL only for the push; `.git/config` was restored to the clean `https://github.com/saber13812002/core-ai-db.git`.
+- Git identity: all pushed commits carry the machine placeholder `Administrator <admin@example.com>` (user-approved). Set `git config user.name` / `user.email` before the next commit so future history uses a real identity.
 
 ### Open items
 
-- **Step 14 (only remaining):** user hands over the GitHub repo URL; `git remote add origin <url>`, `git push -u origin main`.
-- Before pushing: set a real git identity — the machine placeholder `Administrator <admin@example.com>` is currently used.
-- Housekeeping (optional): the user-run `C:\Users\s.tabatabaei\pg-install.bat` EDB install produced no verifiable artifacts on this machine and should be deleted; up to 5 stale UAC "consent.exe" prompts from earlier installer attempts may sit on the desktop and should be dismissed.
+- (Optional) Set a real git identity for future commits; the pushed commits keep the placeholder author.
+- (Optional) Housekeeping: delete `C:\Users\s.tabatabaei\pg-install.bat` (EDB install produced no verifiable artifacts), dismiss stale UAC "consent.exe" prompts, optionally delete the already-imported WSL rootfs tarball (~356 MB), and remove the `gh-*.json` probe files from `C:\Users\s.tabatabaei\`.
