@@ -1,58 +1,186 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Core AI Factory — Database & REST API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A Laravel 13 backend for the **Core AI Factory**: a pipeline that ingests source files (lecture PDFs, DOCX, audio/video), runs AI automation actions (transcript extraction, slide extraction, quiz generation, summarization, text cleaning) against registered LLMs, produces versioned outputs, supports human review and ground truth, benchmarks candidate vs. baseline models, builds training datasets, tracks fine-tuning jobs / trained models / releases, and logs feedback and external service calls.
 
-## About Laravel
+Everything is exposed as a **versioned REST API** (`/api/v1`) with full CRUD for every domain entity — **120 endpoints, no authentication** (auth is intentionally out of scope for now).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Tech Stack
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Layer | Technology |
+|---|---|
+| Framework | Laravel 13 (PHP 8.5) |
+| Database | PostgreSQL 16 (dev: WSL distro `coreaipg` at `127.0.0.1:5432`) |
+| Tests | PHPUnit feature tests on SQLite `:memory:` |
+| Style | Laravel Pint |
+| Frontend | None (API-only) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Architecture
 
-## Learning Laravel
+Strict layering, one direction of dependency:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Controller → Service → Repository → Eloquent (models)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+- [`app/Http/Controllers/Api/V1`](app/Http/Controllers/Api/V1) — 24 thin controllers (route-model-bound, eager-load relations, delegate to a service, respond via an API Resource).
+- [`app/Http/Requests/Api/V1`](app/Http/Requests/Api/V1) — 48 Form Requests (`Store*Request` + `Update*Request`, the latter extends the former and makes all rules optional).
+- [`app/Http/Resources/Api/V1`](app/Http/Resources/Api/V1) — 24 API Resources.
+- [`app/Services`](app/Services) — 24 services extending [`BaseService`](app/Services/BaseService.php) (`list / create / find / findOrThrow / update / delete`). `VectorCollectionItemService` exposes collection-scoped variants (`listForCollection`, `createForCollection`, `findInCollection`, `findOrThrowInCollection`, `updateInCollection`, `deleteInCollection`).
+- [`app/Repositories`](app/Repositories) — 24 repositories extending [`BaseRepository`](app/Repositories/BaseRepository.php) (Eloquent query builder).
+- [`app/Models`](app/Models) — 24 models with relations, casts, `#[Fillable]`.
 
-## Contributing
+## Domain Model (24 tables)
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Reference data
+| Table | Model | Notes |
+|---|---|---|
+| `output_types` | `OutputType` | bigint PK |
+| `automation_actions` | `AutomationAction` | bigint PK; `input_file_types` jsonb; unique `code` |
+| `prompts` | `MasterPrompt` | versioned master prompts; soft delete; unique `(family_id, version)` |
+| `models` | `AiModel` | registered LLMs; bigint PK; unique `code` |
+| `automation_flows` | `AutomationFlow` | external orchestration-platform flows |
+| `service_registry` | `ServiceRegistry` | external micro-services; bigint PK |
 
-## Code of Conduct
+### Pipeline
+| Table | Model | Notes |
+|---|---|---|
+| `source_files` | `SourceFile` | ingested documents; soft delete; supersedes via self FK |
+| `automation_jobs` | `AutomationJob` | one execution of an action on a file with a model+prompt |
+| `processed_outputs` | `ProcessedOutput` | versioned AI outputs; `is_latest`, `superseded_by_id`; soft delete |
+| `cleaned_outputs` | `CleanedOutput` | cleaned variants of processed outputs; soft delete |
+| `human_ground_truth` | `HumanGroundTruth` | approved human references per file+output-type |
+| `vector_collections` / `vector_collection_items` | `VectorCollection` / `VectorCollectionItem` | RAG collections and their items |
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### Benchmarking & training
+| Table | Model | Notes |
+|---|---|---|
+| `benchmark_sessions` | `BenchmarkSession` | `ab` or `vs-ground-truth` sessions |
+| `benchmark_results` | `BenchmarkResult` | candidate vs. baseline (and/or ground truth) scores |
+| `datasets` / `dataset_items` | `Dataset` / `DatasetItem` | fine-tuning datasets (train/validation/test split) |
+| `training_jobs` | `TrainingJob` | fine-tuning runs on a dataset via a service |
+| `trained_models` | `TrainedModel` | produced models; unique `(name, version)` |
+| `model_evaluations` | `ModelEvaluation` | scored evaluations of trained models |
+| `model_releases` / `release_reports` | `ModelRelease` / `ReleaseReport` | release lifecycle + report artifacts |
 
-## Security Vulnerabilities
+### Telemetry
+| Table | Model | Notes |
+|---|---|---|
+| `feedback_logs` | `FeedbackLog` | like/dislike/correction/flag; bigint PK |
+| `service_call_logs` | `ServiceCallLog` | external service call audit; bigint PK |
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+**Soft deletes** exist on exactly four tables: `source_files`, `prompts`, `processed_outputs`, `cleaned_outputs`.
 
-## License
+**PostgreSQL views** (created by [`2026_09_17_000025_create_factory_views.php`](database/migrations/2026_09_17_000025_create_factory_views.php), pgsql-only):
+- `v_latest_outputs` — current, non-superseded, non-deleted outputs.
+- `v_execution_matrix` — files × active actions × output/job/model/prompt status.
+- `v_benchmark_comparison` — benchmark results with model codes joined in.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## REST API
+
+All routes live under [`/api/v1`](routes/api.php) (`routes/api.php`). Each resource has `index`, `store`, `show`, `update`, `destroy` (120 routes total). Responses are JSON: a `data` payload (wrapped in `data`/`meta` for paginated `index`) with standard HTTP codes (`200`, `201`, `204`, `404`, `422`).
+
+| Route | Model |
+|---|---|
+| `GET/POST /api/v1/files` · `GET/PATCH/DELETE /api/v1/files/{file}` | `SourceFile` |
+| `/api/v1/output-types` | `OutputType` |
+| `/api/v1/automation-actions` | `AutomationAction` |
+| `/api/v1/prompts` | `MasterPrompt` |
+| `/api/v1/models` | `AiModel` |
+| `/api/v1/automation-flows` | `AutomationFlow` |
+| `/api/v1/services` | `ServiceRegistry` |
+| `/api/v1/jobs` | `AutomationJob` |
+| `/api/v1/outputs` | `ProcessedOutput` |
+| `/api/v1/cleaned-outputs` | `CleanedOutput` |
+| `/api/v1/ground-truth` | `HumanGroundTruth` |
+| `/api/v1/benchmark-sessions` | `BenchmarkSession` |
+| `/api/v1/benchmark-results` | `BenchmarkResult` |
+| `/api/v1/datasets` | `Dataset` |
+| `/api/v1/dataset-items` | `DatasetItem` |
+| `/api/v1/training-jobs` | `TrainingJob` |
+| `/api/v1/trained-models` | `TrainedModel` |
+| `/api/v1/model-evaluations` | `ModelEvaluation` |
+| `/api/v1/model-releases` | `ModelRelease` |
+| `/api/v1/release-reports` | `ReleaseReport` |
+| `/api/v1/vector-collections` | `VectorCollection` |
+| `/api/v1/vector-collections/{vectorCollection}/items` | `VectorCollectionItem` (sub-resource) |
+| `/api/v1/feedbacks` | `FeedbackLog` |
+| `/api/v1/service-call-logs` | `ServiceCallLog` |
+
+`index` accepts `?per_page=N` (default 15). `store`/`update` are validated by Form Requests; `update` accepts any subset of the store fields (partial updates). The `items` sub-resource is scoped: an item is always resolved inside its `vector-collections/{vectorCollection}` parent.
+
+### Example
+
+```bash
+# List files
+curl http://localhost:8000/api/v1/files
+
+# Create a source file
+curl -X POST http://localhost:8000/api/v1/files \
+  -H "Content-Type: application/json" -H "Accept: application/json" \
+  -d '{"external_ref":"lecture-001","file_type":"pdf","original_filename":"lecture.pdf","storage_path":"files/lecture.pdf","checksum":"abc123"}'
+
+# Show / update / delete
+curl http://localhost:8000/api/v1/files/{id}
+curl -X PATCH http://localhost:8000/api/v1/files/{id} -H "Accept: application/json" -d '{"page_count":42}'
+curl -X DELETE http://localhost:8000/api/v1/files/{id}
+```
+
+## Local Setup
+
+1. **Database** — PostgreSQL 16. Dev setup here runs in a WSL1 distro `coreaipg` (role `root`, trust auth, database `core_ai_db` on `127.0.0.1:5432`).
+2. **Environment** — copy `.env.example` to `.env`; set `DB_CONNECTION=pgsql`, `DB_HOST=127.0.0.1`, `DB_PORT=5432`, `DB_DATABASE=core_ai_db`, `DB_USERNAME=root`.
+3. **Install & build**:
+
+   ```bash
+   composer install
+   php artisan migrate:fresh --seed
+   php artisan serve        # or: npm run dev
+   ```
+
+4. **Seeders** — `ReferenceDataSeeder` (run by `DatabaseSeeder`) idempotently seeds reference data by natural key: output types, automation actions, registered models, services, automation flows, and master prompt families.
+
+## Testing
+
+```bash
+php artisan test            # 122 feature tests, SQLite :memory: via RefreshDatabase
+```
+
+[`tests/Feature/Api/V1`](tests/Feature/Api/V1) contains an abstract [`CrudApiTestCase`](tests/Feature/Api/V1/CrudApiTestCase.php) with five generic CRUD tests (list / create / show / update / delete, including soft-delete handling) plus one thin subclass per resource supplying model class, table name, URL, and per-resource payload overrides.
+
+## Code Style
+
+Laravel Pint (config in [`pint.json`](pint.json)):
+
+```bash
+php vendor/bin/pint --dirty --format agent
+```
+
+## Repository Layout
+
+```
+app/
+  Http/Controllers/Api/V1/   # 24 API controllers
+  Http/Requests/Api/V1/      # 48 Store/Update Form Requests
+  Http/Resources/Api/V1/     # 24 API Resources
+  Models/                    # 24 Eloquent models
+  Repositories/              # BaseRepository + 24 repositories
+  Services/                  # BaseService + 24 services
+database/
+  factories/                 # 24 factories (+ UserFactory)
+  migrations/                # 24 table migrations + pgsql views
+  seeders/                   # DatabaseSeeder + ReferenceDataSeeder
+plans/                       # implementation plans
+routes/
+  api.php                    # all /api/v1 routes
+tests/Feature/Api/V1/        # abstract base + 24 per-resource tests
+```
+
+## Status & Roadmap
+
+- [x] Schema for all 22 design-deepseek tables + `vector_collections` / `vector_collection_items`
+- [x] Models, repositories, services, Form Requests, Resources, controllers
+- [x] 120 REST CRUD endpoints, no authentication
+- [x] Feature tests (122 passing)
+- [ ] Authentication / authorization
+- [ ] Actual AI automation execution (jobs currently only tracked via API)
+- [ ] Vector embedding population (collections are tracked, not populated)
