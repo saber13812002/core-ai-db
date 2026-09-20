@@ -3,6 +3,8 @@
 > Formal delivery contract for the Web Service. The tester works **black-box**: Input → API → Status → Output → visible data. No knowledge of internal Queue/Worker/DB is required.
 >
 > Source backlog: 14 Epics / 34 User Stories (see §1). Gap implementation on top of the already-shipped 24-table schema + 23 CRUD resources (see [`core-ai-factory-schema-api.md`](core-ai-factory-schema-api.md)).
+>
+> **Already delivered** (phases 1–2): auth, upload/download, metadata schemas — the shipped, test-proven surface is mapped scenario-by-scenario in [`e2e-test-coverage.md`](e2e-test-coverage.md). Phases 3–8 below are the remaining work.
 
 ## 0. Locked decisions
 
@@ -289,3 +291,8 @@ Project-level DoD (17 items from the backlog) is the delivery gate. Per-story ch
 - Real Whisper/LLM integration is explicitly out of this phase: the driver seam (`JobProcessingDriver` + `service_registry` rows) is the agreed extension point.
 - `processing_status` gains `registered` in the validation vocabulary only (no column change).
 - All new migrations stay SQLite-portable; views migration stays the only raw-SQL exception.
+
+## 12. Status
+
+- **Phases 1–2 (auth, upload/download, metadata schemas): delivered.** Verified by the 157-test suite; scenario-by-scenario acceptance map (all requests, expected responses, visible state, test anchors) in [`e2e-test-coverage.md`](e2e-test-coverage.md).
+- **Phases 3–8: not yet implemented** — the job engine (SimProcessor/queue/status/history/result/cancel, idempotency on jobs), pipeline reference data + prompt resolve, dataset generate/export, training/benchmark run, lineage, and `PipelineE2eTest` remain. The US-09…US-34 scenarios in §6 stay the acceptance contract for when they land.

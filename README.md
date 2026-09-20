@@ -2,7 +2,7 @@
 
 A Laravel 13 backend for the **Core AI Factory**: a pipeline that ingests source files (lecture PDFs, DOCX, audio/video), runs AI automation actions (transcript extraction, slide extraction, quiz generation, summarization, text cleaning) against registered LLMs, produces versioned outputs, supports human review and ground truth, benchmarks candidate vs. baseline models, builds training datasets, tracks fine-tuning jobs / trained models / releases, and logs feedback and external service calls.
 
-Everything is exposed as a **versioned REST API** (`/api/v1`) with full CRUD for every domain entity — **120 endpoints, no authentication** (auth is intentionally out of scope for now).
+Everything is exposed as a **versioned REST API** (`/api/v1`) with full CRUD for every domain entity, plus file upload/download and metadata schemas — **124 endpoints**, all behind **API-key authentication** (`X-API-Key`). A test-driven acceptance map of everything shipped lives in [`plans/e2e-test-coverage.md`](plans/e2e-test-coverage.md).
 
 ## Tech Stack
 
@@ -77,7 +77,7 @@ Controller → Service → Repository → Eloquent (models)
 
 ## REST API
 
-All routes live under [`/api/v1`](routes/api.php) (`routes/api.php`). Each resource has `index`, `store`, `show`, `update`, `destroy` (120 routes total). Responses are JSON: a `data` payload (wrapped in `data`/`meta` for paginated `index`) with standard HTTP codes (`200`, `201`, `204`, `404`, `422`).
+All routes live under `/api/v1` in [`routes/api.php`](routes/api.php). Each resource has `index`, `store`, `show`, `update`, `destroy` (120 routes total), plus the extras below (124 routes). Responses are JSON: a `data` payload (wrapped in `data`/`meta` for paginated `index`) with standard HTTP codes (`200`, `201`, `204`, `404`, `413`, `415`, `422`). Every request requires an `X-API-Key` header (or `Authorization: Bearer <key>`), managed via `php artisan api-key:create|list|revoke`.
 
 | Route | Model |
 |---|---|
@@ -105,6 +105,8 @@ All routes live under [`/api/v1`](routes/api.php) (`routes/api.php`). Each resou
 | `/api/v1/vector-collections/{vectorCollection}/items` | `VectorCollectionItem` (sub-resource) |
 | `/api/v1/feedbacks` | `FeedbackLog` |
 | `/api/v1/service-call-logs` | `ServiceCallLog` |
+| `/api/v1/metadata-schemas` | `MetadataSchema` |
+| `POST /api/v1/files/upload` · `GET /api/v1/files/{file}/download` | binary upload (multipart) + streamed download, dedupe by SHA-256 |
 
 `index` accepts `?per_page=N` (default 15). `store`/`update` are validated by Form Requests; `update` accepts any subset of the store fields (partial updates). The `items` sub-resource is scoped: an item is always resolved inside its `vector-collections/{vectorCollection}` parent.
 
@@ -142,10 +144,12 @@ curl -X DELETE http://localhost:8000/api/v1/files/{id}
 ## Testing
 
 ```bash
-php artisan test            # 122 feature tests, SQLite :memory: via RefreshDatabase
+php artisan test            # 157 tests (441 assertions), SQLite :memory: via RefreshDatabase
 ```
 
-[`tests/Feature/Api/V1`](tests/Feature/Api/V1) contains an abstract [`CrudApiTestCase`](tests/Feature/Api/V1/CrudApiTestCase.php) with five generic CRUD tests (list / create / show / update / delete, including soft-delete handling) plus one thin subclass per resource supplying model class, table name, URL, and per-resource payload overrides.
+[`tests/Feature/Api/V1`](tests/Feature/Api/V1) contains an abstract [`CrudApiTestCase`](tests/Feature/Api/V1/CrudApiTestCase.php) with five generic CRUD tests (list / create / show / update / delete, including soft-delete handling) plus one thin subclass per resource supplying model class, table name, URL, and per-resource payload overrides, on top of dedicated scenario suites: [`ApiAuthenticationTest`](tests/Feature/Api/V1/ApiAuthenticationTest.php) (API-key auth), [`FileUploadTest`](tests/Feature/Api/V1/FileUploadTest.php) (upload / download / dedupe / negative matrix), and [`MetadataFilesApiTest`](tests/Feature/Api/V1/MetadataFilesApiTest.php) (metadata filter + schema validation).
+
+**Acceptance handbook** — [`plans/e2e-test-coverage.md`](plans/e2e-test-coverage.md) maps every feature 0→100 to its exact test scenarios (request → expected response → visible state), layer by layer, with per-scenario links to the test methods and a delivery checklist. The forward-looking plan for the not-yet-implemented pipeline phases (job engine, dataset/training/benchmark execution, lineage) is [`plans/acceptance-delivery-plan.md`](plans/acceptance-delivery-plan.md).
 
 ## Code Style
 
@@ -179,8 +183,10 @@ tests/Feature/Api/V1/        # abstract base + 24 per-resource tests
 
 - [x] Schema for all 22 design-deepseek tables + `vector_collections` / `vector_collection_items`
 - [x] Models, repositories, services, Form Requests, Resources, controllers
-- [x] 120 REST CRUD endpoints, no authentication
-- [x] Feature tests (122 passing)
-- [ ] Authentication / authorization
+- [x] 120 REST CRUD endpoints
+- [x] API-key authentication (all `/api/v1` routes)
+- [x] File upload / download + metadata schemas (`metadata_schemas`, JSONB filter, schema validation on store/update)
+- [x] Feature tests (157 passing) — acceptance map: [`plans/e2e-test-coverage.md`](plans/e2e-test-coverage.md)
 - [ ] Actual AI automation execution (jobs currently only tracked via API)
+- [ ] Dataset generate/export, training run, benchmark run, lineage (see [`plans/acceptance-delivery-plan.md`](plans/acceptance-delivery-plan.md) phases 5–8)
 - [ ] Vector embedding population (collections are tracked, not populated)
