@@ -33,7 +33,7 @@ class DatasetController extends Controller
 
     public function store(StoreDatasetRequest $request): Response
     {
-        $model = $this->service->create($request->validated());
+        $model = $this->service->create($this->withCreator($request, $request->validated()));
         $model->load($this->eagerLoad());
 
         return (new DatasetResource($model))->response()->setStatusCode(201);

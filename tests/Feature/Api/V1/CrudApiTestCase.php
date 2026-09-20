@@ -3,13 +3,9 @@
 namespace Tests\Feature\Api\V1;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\TestCase;
 
-abstract class CrudApiTestCase extends TestCase
+abstract class CrudApiTestCase extends ApiTestCase
 {
-    use RefreshDatabase;
-
     protected ?Model $seedRecord = null;
 
     abstract protected function modelClass(): string;

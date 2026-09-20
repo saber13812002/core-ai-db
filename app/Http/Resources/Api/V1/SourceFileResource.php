@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\V1;
 
+use App\Models\MetadataSchema;
 use App\Models\SourceFile;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -29,6 +30,12 @@ class SourceFileResource extends JsonResource
             'page_count' => $this->page_count,
             'language' => $this->language,
             'metadata' => $this->metadata,
+            'metadata_schema_id' => $this->metadata_schema_id,
+            'metadata_schema' => $this->whenLoaded('metadataSchema', fn (MetadataSchema $rel): array => [
+                'id' => $rel->id,
+                'name' => $rel->name,
+                'scope' => $rel->scope,
+            ]),
             'human_approved' => $this->human_approved,
             'human_approved_by' => $this->human_approved_by,
             'human_approved_at' => $this->human_approved_at,

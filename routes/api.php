@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\DatasetItemController;
 use App\Http\Controllers\Api\V1\FeedbackLogController;
 use App\Http\Controllers\Api\V1\HumanGroundTruthController;
 use App\Http\Controllers\Api\V1\MasterPromptController;
+use App\Http\Controllers\Api\V1\MetadataSchemaController;
 use App\Http\Controllers\Api\V1\ModelEvaluationController;
 use App\Http\Controllers\Api\V1\ModelReleaseController;
 use App\Http\Controllers\Api\V1\OutputTypeController;
@@ -28,6 +29,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::apiResource('files', SourceFileController::class);
+    Route::post('files/upload', [SourceFileController::class, 'upload']);
+    Route::get('files/{file}/download', [SourceFileController::class, 'download']);
+    Route::apiResource('metadata-schemas', MetadataSchemaController::class)->parameters(['metadata-schemas' => 'metadataSchema']);
     Route::apiResource('output-types', OutputTypeController::class)->parameters(['output-types' => 'outputType']);
     Route::apiResource('automation-actions', AutomationActionController::class)->parameters(['automation-actions' => 'automationAction']);
     Route::apiResource('prompts', MasterPromptController::class);

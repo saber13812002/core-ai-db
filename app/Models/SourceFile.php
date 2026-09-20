@@ -29,6 +29,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $page_count
  * @property string $language
  * @property array<string, mixed>|null $metadata
+ * @property string|null $metadata_schema_id
  * @property bool $human_approved
  * @property string|null $human_approved_by
  * @property Carbon|null $human_approved_at
@@ -45,7 +46,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'external_ref', 'file_type', 'original_filename', 'storage_path', 'mime_type',
     'file_size_bytes', 'checksum_sha256', 'duration_seconds', 'page_count', 'language',
-    'metadata', 'human_approved', 'human_approved_by', 'human_approved_at', 'human_approval_note',
+    'metadata', 'metadata_schema_id', 'human_approved', 'human_approved_by', 'human_approved_at', 'human_approval_note',
     'processing_status', 'version_number', 'superseded_by_id', 'is_latest', 'created_by',
 ])]
 #[Table(name: 'source_files')]
@@ -77,6 +78,14 @@ class SourceFile extends Model
     public function supersededBy(): BelongsTo
     {
         return $this->belongsTo(SourceFile::class, 'superseded_by_id');
+    }
+
+    /**
+     * @return BelongsTo<MetadataSchema, $this>
+     */
+    public function metadataSchema(): BelongsTo
+    {
+        return $this->belongsTo(MetadataSchema::class, 'metadata_schema_id');
     }
 
     /**

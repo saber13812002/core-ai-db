@@ -33,7 +33,7 @@ class MasterPromptController extends Controller
 
     public function store(StoreMasterPromptRequest $request): Response
     {
-        $model = $this->service->create($request->validated());
+        $model = $this->service->create($this->withCreator($request, $request->validated()));
         $model->load($this->eagerLoad());
 
         return (new MasterPromptResource($model))->response()->setStatusCode(201);

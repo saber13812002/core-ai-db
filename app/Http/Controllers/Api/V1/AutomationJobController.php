@@ -33,7 +33,7 @@ class AutomationJobController extends Controller
 
     public function store(StoreAutomationJobRequest $request): Response
     {
-        $model = $this->service->create($request->validated());
+        $model = $this->service->create($this->withCreator($request, $request->validated()));
         $model->load($this->eagerLoad());
 
         return (new AutomationJobResource($model))->response()->setStatusCode(201);
