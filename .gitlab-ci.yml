@@ -1,25 +1,26 @@
 # CI/CD pipeline — core-ai-db (هسته‌ی دیتابیس مرکز AI factory)
 #
-# Runner:  server52  (GitLab Runner docker-executor on 172.20.1.52, tag "server52")
-# Image:   php:8.4    (Debian; ships pdo_sqlite/sqlite3/mbstring/dom/xml — no Postgres/Redis needed,
-#                      the suite runs on SQLite :memory: exactly like locally)
+# Runner:  server52  (GitLab Runner, docker executor, on 172.20.1.52, tag "server52")
+# Image:   php:8.4    (Debian; ships pdo_sqlite/sqlite3/mbstring/dom/xml — no Postgres/Redis
+#                      needed, the suite runs on SQLite :memory: exactly like locally)
 #
-# The whole "just works" contract: `composer install` -> Pint style gate -> full test suite.
-# Tests are on an in-memory database, so no service containers are required.
+# Contract: `composer install` -> Pint style gate -> full test suite.
+# NOTE: `variables` is NOT a valid key under `default` in GitLab 16.3, so it lives at the
+#       top level (applies to every job) instead.
 
 image: php:8.4
+
+# Top-level variables apply to all jobs. APP_KEY is random + self-contained so the pipeline
+# needs no manual CI/CD variable; it is only valid inside this ephemeral container.
+variables:
+  APP_KEY: "base64:WelZGm3i6Zr1ZGrb/LV34fHLkyJRgu/MxpDnZlCY4Nc="
+  COMPOSER_PROCESS_TIMEOUT: "1200"
+  COMPOSER_ALLOW_SUPERUSER: "1"
 
 default:
   tags:
     - server52
   timeout: 25m
-  variables:
-    # Random, self-contained key so the pipeline runs without any project CI/CD variable.
-    # APP_KEY is only valid inside this ephemeral container — it is not a real secret.
-    APP_KEY: "base64:WelZGm3i6Zr1ZGrb/LV34fHLkyJRgu/MxpDnZlCY4Nc="
-    COMPOSER_PROCESS_TIMEOUT: "1200"
-    # Run as a plain user; composer refuses to run as root otherwise.
-    COMPOSER_ALLOW_SUPERUSER: "1"
 
 stages:
   - test
@@ -37,11 +38,10 @@ stages:
 test-php:
   extends: .test:base
   script:
-    - echo "PHP: $(php -v | head -1)"
     - composer install --no-interaction --no-progress --prefer-dist
     # Style gate: the codebase must be Pint-clean.
     - php vendor/bin/pint --test --format agent
-    # Full suite (Unit + Feature, SQLite :memory:). Uses phpunit directly for a clean
+    # Full suite (Unit + Feature, SQLite :memory:). phpunit directly gives a clean
     # "OK (N tests, M assertions)" signal — `artisan test` (Collision) surfaces PHP 8.4
     # deprecation notices as per-test warnings, which is noise for CI.
     - php artisan config:clear --ansi
