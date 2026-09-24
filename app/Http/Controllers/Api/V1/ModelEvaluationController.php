@@ -20,7 +20,7 @@ class ModelEvaluationController extends Controller
      */
     private function eagerLoad(): array
     {
-        return ['trainedModel', 'benchmarkSession', 'baselineModel', 'judgeModel', 'judgePrompt'];
+        return ['trainedModel', 'benchmarkSession', 'baselineModel', 'judgeModel', 'judgePrompt', 'metricRows'];
     }
 
     public function index(Request $request): Response

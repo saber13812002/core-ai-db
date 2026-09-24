@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\AiModel;
 use App\Models\AutomationAction;
 use App\Models\AutomationJob;
+use App\Models\JobBatch;
 use App\Models\MasterPrompt;
 use App\Models\SourceFile;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,7 +23,7 @@ class AutomationJobFactory extends Factory
     public function definition(): array
     {
         return [
-            'batch_id' => fake()->optional()->uuid(),
+            'batch_id' => JobBatch::factory(),
             'source_file_id' => SourceFile::factory(),
             'action_id' => AutomationAction::factory(),
             'model_id' => AiModel::factory(),
@@ -35,6 +36,8 @@ class AutomationJobFactory extends Factory
             'retry_count' => 0,
             'max_retries' => 3,
             'queued_at' => now(),
+            'source' => 'api',
+            'is_automatic' => false,
         ];
     }
 
@@ -58,6 +61,22 @@ class AutomationJobFactory extends Factory
             'started_at' => now()->subMinute(),
             'completed_at' => now(),
             'error_message' => 'upstream timeout',
+        ]);
+    }
+
+    public function automatic(): static
+    {
+        return $this->state([
+            'source' => 'scheduler',
+            'is_automatic' => true,
+        ]);
+    }
+
+    public function manual(): static
+    {
+        return $this->state([
+            'source' => 'api',
+            'is_automatic' => false,
         ]);
     }
 }

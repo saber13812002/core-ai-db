@@ -25,10 +25,28 @@ class AutomationJobController extends Controller
 
     public function index(Request $request): Response
     {
-        $paginator = $this->service->list($request->integer('per_page', 15));
+        $paginator = $this->service->listWithFilters(
+            $request->input('status'),
+            $request->input('source'),
+            $this->boolFilter($request, 'is_automatic'),
+            $request->input('source_file_id'),
+            $request->input('batch_id'),
+            $request->integer('per_page', 15),
+        );
         $paginator->getCollection()->load($this->eagerLoad());
 
         return AutomationJobResource::collection($paginator)->response();
+    }
+
+    /**
+     * Parse a tri-state boolean query param: absent => null (no filter),
+     * otherwise the value as a real boolean.
+     */
+    private function boolFilter(Request $request, string $key): ?bool
+    {
+        $value = $request->input($key);
+
+        return $value === null || $value === '' ? null : (bool) filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     public function store(StoreAutomationJobRequest $request): Response

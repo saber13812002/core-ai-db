@@ -2,6 +2,7 @@
 
 use App\Exceptions\FileDownloadException;
 use App\Exceptions\FileUploadException;
+use App\Exceptions\IntegrationEventReferenceException;
 use App\Exceptions\MetadataSchemaNotFoundException;
 use App\Exceptions\MetadataValidationException;
 use App\Http\Middleware\EnsureApiKey;
@@ -52,6 +53,16 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
                     'error' => ['code' => 'metadata_schema_not_found', 'message' => $e->getMessage()],
+                ], 422);
+            }
+
+            return null;
+        });
+
+        $exceptions->render(function (IntegrationEventReferenceException $e, Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json([
+                    'error' => ['code' => 'unknown_reference', 'message' => $e->getMessage()],
                 ], 422);
             }
 

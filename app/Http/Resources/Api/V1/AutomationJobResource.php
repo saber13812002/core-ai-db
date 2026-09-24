@@ -86,6 +86,8 @@ class AutomationJobResource extends JsonResource
             'completed_at' => $this->completed_at,
             'created_at' => $this->created_at,
             'created_by' => $this->created_by,
+            'source' => $this->source,
+            'is_automatic' => $this->is_automatic,
         ];
     }
 }

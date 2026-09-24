@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -94,5 +95,13 @@ class ModelEvaluation extends Model
     public function judgePrompt(): BelongsTo
     {
         return $this->belongsTo(MasterPrompt::class, 'judge_prompt_id');
+    }
+
+    /**
+     * @return HasMany<ModelBenchmarkMetric, $this>
+     */
+    public function metricRows(): HasMany
+    {
+        return $this->hasMany(ModelBenchmarkMetric::class);
     }
 }

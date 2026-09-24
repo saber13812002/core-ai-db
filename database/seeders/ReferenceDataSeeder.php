@@ -7,7 +7,9 @@ use App\Models\AutomationAction;
 use App\Models\AutomationFlow;
 use App\Models\MasterPrompt;
 use App\Models\OutputType;
+use App\Models\Project;
 use App\Models\ServiceRegistry;
+use App\Models\SourceType;
 use Illuminate\Database\Seeder;
 use Ramsey\Uuid\Uuid;
 
@@ -19,11 +21,50 @@ class ReferenceDataSeeder extends Seeder
     public function run(): void
     {
         $this->seedOutputTypes();
+        $this->seedSourceTypes();
+        $this->seedProjects();
         $this->seedActions();
         $this->seedModels();
         $this->seedServices();
         $this->seedFlows();
         $this->seedPrompts();
+    }
+
+    protected function seedSourceTypes(): void
+    {
+        $types = [
+            ['code' => 'audio', 'label_fa' => 'صوت'],
+            ['code' => 'video', 'label_fa' => 'ویدیو'],
+            ['code' => 'pdf', 'label_fa' => 'PDF'],
+            ['code' => 'docx', 'label_fa' => 'Word'],
+            ['code' => 'xlsx', 'label_fa' => 'Excel'],
+            ['code' => 'pptx', 'label_fa' => 'PowerPoint'],
+            ['code' => 'image', 'label_fa' => 'تصویر'],
+            ['code' => 'text', 'label_fa' => 'متنی'],
+        ];
+
+        foreach ($types as $type) {
+            SourceType::updateOrCreate(['code' => $type['code']], $type);
+        }
+    }
+
+    protected function seedProjects(): void
+    {
+        Project::updateOrCreate(
+            ['name' => 'مجمع حکمت خراسانی'],
+            [
+                'description' => 'پروژه‌ی محتوای هوشمند مجمع حکمت خراسانی',
+                'is_active' => true,
+            ],
+        );
+
+        Project::updateOrCreate(
+            ['name' => 'سمائه'],
+            [
+                'description' => 'جلسه‌های صوتی سمائه (درمانی/روان‌شناسی)',
+                'is_active' => true,
+            ],
+        );
     }
 
     protected function seedOutputTypes(): void
@@ -75,6 +116,14 @@ class ReferenceDataSeeder extends Seeder
                 'action_category' => 'summarization',
                 'input_file_types' => ['pdf', 'docx', 'mp3'],
                 'output_type_id' => OutputType::where('code', 'summary')->value('id'),
+                'requires_prompt' => true,
+            ],
+            [
+                'code' => 'refine-text',
+                'name_fa' => 'اصلاح و تنظیم متن',
+                'action_category' => 'cleaning',
+                'input_file_types' => ['pdf', 'docx', 'mp3', 'mp4'],
+                'output_type_id' => OutputType::where('code', 'cleaned-text')->value('id'),
                 'requires_prompt' => true,
             ],
             [
@@ -225,6 +274,22 @@ class ReferenceDataSeeder extends Seeder
                 'target_output_type_code' => 'cleaned-text',
                 'target_action_code' => 'clean-text',
                 'content' => 'Clean the provided text: fix spacing, normalize punctuation, remove duplicates, and keep the original meaning.',
+            ],
+            [
+                'family_code' => 'refiner',
+                'name' => 'اصلاح و تنظیم متن',
+                'prompt_type' => 'cleaning',
+                'target_output_type_code' => 'cleaned-text',
+                'target_action_code' => 'refine-text',
+                'content' => 'Refine the raw transcript into flowing, correct Persian: fix ASR errors, restore sentence boundaries, and keep all names and technical terms intact.',
+            ],
+            [
+                'family_code' => 'summarizer',
+                'name' => 'خلاصه‌سازی متن',
+                'prompt_type' => 'summarization',
+                'target_output_type_code' => 'summary',
+                'target_action_code' => 'summarize',
+                'content' => 'Summarize the provided text in Persian: keep the key points, preserve the order of topics, and stay within three paragraphs.',
             ],
             [
                 'family_code' => 'judge',

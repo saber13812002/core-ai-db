@@ -28,7 +28,7 @@ class SourceFileController extends Controller
      */
     private function eagerLoad(): array
     {
-        return ['supersededBy', 'metadataSchema'];
+        return ['supersededBy', 'metadataSchema', 'project', 'sourceType'];
     }
 
     public function index(Request $request): Response

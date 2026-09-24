@@ -19,7 +19,9 @@ use Illuminate\Support\Carbon;
  *
  * @property string $id
  * @property string|null $external_ref
+ * @property string|null $project_id
  * @property string $file_type
+ * @property int|null $source_type_id
  * @property string|null $original_filename
  * @property string $storage_path
  * @property string|null $mime_type
@@ -44,7 +46,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $deleted_at
  */
 #[Fillable([
-    'external_ref', 'file_type', 'original_filename', 'storage_path', 'mime_type',
+    'external_ref', 'project_id', 'file_type', 'source_type_id', 'original_filename', 'storage_path', 'mime_type',
     'file_size_bytes', 'checksum_sha256', 'duration_seconds', 'page_count', 'language',
     'metadata', 'metadata_schema_id', 'human_approved', 'human_approved_by', 'human_approved_at', 'human_approval_note',
     'processing_status', 'version_number', 'superseded_by_id', 'is_latest', 'created_by',
@@ -70,6 +72,22 @@ class SourceFile extends Model
             'version_number' => 'integer',
             'is_latest' => 'boolean',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Project, $this>
+     */
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    /**
+     * @return BelongsTo<SourceType, $this>
+     */
+    public function sourceType(): BelongsTo
+    {
+        return $this->belongsTo(SourceType::class);
     }
 
     /**

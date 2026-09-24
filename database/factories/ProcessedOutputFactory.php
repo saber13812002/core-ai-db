@@ -61,4 +61,16 @@ class ProcessedOutputFactory extends Factory
     {
         return $this->state(['is_latest' => false]);
     }
+
+    /**
+     * Bind the output to a specific source file (and optionally the job
+     * that produced it) so E2E chains stay traceable to one file.
+     */
+    public function forFile(SourceFile $file, ?AutomationJob $job = null): static
+    {
+        return $this->state([
+            'source_file_id' => $file,
+            'job_id' => $job ?? AutomationJob::factory()->for($file, 'sourceFile'),
+        ]);
+    }
 }

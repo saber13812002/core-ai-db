@@ -48,6 +48,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $completed_at
  * @property Carbon $created_at
  * @property string|null $created_by
+ * @property string $source
+ * @property bool $is_automatic
  */
 #[Fillable([
     'batch_id', 'source_file_id', 'action_id', 'flow_id', 'model_id',
@@ -57,6 +59,7 @@ use Illuminate\Support\Carbon;
     'actual_duration_sec', 'token_count', 'service_id', 'external_job_id',
     'request_payload', 'response_payload', 'error_message', 'retry_count',
     'max_retries', 'queued_at', 'started_at', 'completed_at', 'created_by',
+    'source', 'is_automatic',
 ])]
 #[Table(name: 'automation_jobs', timestamps: false)]
 #[WithoutTimestamps]
@@ -79,6 +82,7 @@ class AutomationJob extends Model
             'actual_cost_usd' => 'decimal:4',
             'actual_duration_sec' => 'integer',
             'token_count' => 'integer',
+            'is_automatic' => 'boolean',
             'request_payload' => 'array',
             'response_payload' => 'array',
             'retry_count' => 'integer',
@@ -136,6 +140,14 @@ class AutomationJob extends Model
     public function cleaningPrompt(): BelongsTo
     {
         return $this->belongsTo(MasterPrompt::class, 'cleaning_prompt_id');
+    }
+
+    /**
+     * @return BelongsTo<JobBatch, $this>
+     */
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(JobBatch::class, 'batch_id');
     }
 
     /**

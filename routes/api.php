@@ -11,16 +11,21 @@ use App\Http\Controllers\Api\V1\DatasetController;
 use App\Http\Controllers\Api\V1\DatasetItemController;
 use App\Http\Controllers\Api\V1\FeedbackLogController;
 use App\Http\Controllers\Api\V1\HumanGroundTruthController;
+use App\Http\Controllers\Api\V1\IntegrationEventController;
+use App\Http\Controllers\Api\V1\JobBatchController;
 use App\Http\Controllers\Api\V1\MasterPromptController;
 use App\Http\Controllers\Api\V1\MetadataSchemaController;
+use App\Http\Controllers\Api\V1\ModelBenchmarkMetricController;
 use App\Http\Controllers\Api\V1\ModelEvaluationController;
 use App\Http\Controllers\Api\V1\ModelReleaseController;
 use App\Http\Controllers\Api\V1\OutputTypeController;
 use App\Http\Controllers\Api\V1\ProcessedOutputController;
+use App\Http\Controllers\Api\V1\ProjectController;
 use App\Http\Controllers\Api\V1\ReleaseReportController;
 use App\Http\Controllers\Api\V1\ServiceCallLogController;
 use App\Http\Controllers\Api\V1\ServiceRegistryController;
 use App\Http\Controllers\Api\V1\SourceFileController;
+use App\Http\Controllers\Api\V1\SourceTypeController;
 use App\Http\Controllers\Api\V1\TrainedModelController;
 use App\Http\Controllers\Api\V1\TrainingJobController;
 use App\Http\Controllers\Api\V1\VectorCollectionController;
@@ -31,6 +36,8 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('files', SourceFileController::class);
     Route::post('files/upload', [SourceFileController::class, 'upload']);
     Route::get('files/{file}/download', [SourceFileController::class, 'download']);
+    Route::apiResource('projects', ProjectController::class);
+    Route::apiResource('source-types', SourceTypeController::class)->parameters(['source-types' => 'sourceType']);
     Route::apiResource('metadata-schemas', MetadataSchemaController::class)->parameters(['metadata-schemas' => 'metadataSchema']);
     Route::apiResource('output-types', OutputTypeController::class)->parameters(['output-types' => 'outputType']);
     Route::apiResource('automation-actions', AutomationActionController::class)->parameters(['automation-actions' => 'automationAction']);
@@ -39,6 +46,8 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('automation-flows', AutomationFlowController::class)->parameters(['automation-flows' => 'automationFlow']);
     Route::apiResource('services', ServiceRegistryController::class)->parameters(['services' => 'service']);
     Route::apiResource('jobs', AutomationJobController::class);
+    Route::apiResource('job-batches', JobBatchController::class)->parameters(['job-batches' => 'jobBatch']);
+    Route::post('job-batches/{jobBatch}/close-out', [JobBatchController::class, 'closeOut']);
     Route::apiResource('outputs', ProcessedOutputController::class);
     Route::apiResource('cleaned-outputs', CleanedOutputController::class)->parameters(['cleaned-outputs' => 'cleanedOutput']);
     Route::apiResource('ground-truth', HumanGroundTruthController::class)->parameters(['ground-truth' => 'groundTruth']);
@@ -49,6 +58,8 @@ Route::prefix('v1')->group(function (): void {
     Route::apiResource('training-jobs', TrainingJobController::class)->parameters(['training-jobs' => 'trainingJob']);
     Route::apiResource('trained-models', TrainedModelController::class)->parameters(['trained-models' => 'trainedModel']);
     Route::apiResource('model-evaluations', ModelEvaluationController::class)->parameters(['model-evaluations' => 'modelEvaluation']);
+    Route::apiResource('model-evaluations/{modelEvaluation}/metrics', ModelBenchmarkMetricController::class)
+        ->parameters(['metrics' => 'modelBenchmarkMetric']);
     Route::apiResource('model-releases', ModelReleaseController::class)->parameters(['model-releases' => 'modelRelease']);
     Route::apiResource('release-reports', ReleaseReportController::class)->parameters(['release-reports' => 'releaseReport']);
     Route::apiResource('vector-collections', VectorCollectionController::class)->parameters(['vector-collections' => 'vectorCollection']);
@@ -56,4 +67,9 @@ Route::prefix('v1')->group(function (): void {
         ->parameters(['items' => 'vectorCollectionItem']);
     Route::apiResource('feedbacks', FeedbackLogController::class);
     Route::apiResource('service-call-logs', ServiceCallLogController::class)->parameters(['service-call-logs' => 'serviceCallLog']);
+    // External services (or the Gateway/Orchestrator) report status here,
+    // using the UUIDs we own (reference_type + reference_id).
+    Route::post('webhooks/integration-events', [IntegrationEventController::class, 'store']);
+    Route::get('webhooks/integration-events', [IntegrationEventController::class, 'index']);
+    Route::get('integration-events/{referenceType}/{referenceId}', [IntegrationEventController::class, 'show']);
 });

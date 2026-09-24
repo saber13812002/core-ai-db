@@ -46,6 +46,7 @@ return [
             'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
             'pdf' => ['application/pdf'],
             'txt' => ['text/plain'],
+            'xlsx' => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
             'mp3' => ['audio/mpeg', 'audio/mpeg3'],
             'wav' => ['audio/wav', 'audio/x-wav', 'audio/wave'],
             'mp4' => ['video/mp4'],

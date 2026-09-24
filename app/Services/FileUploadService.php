@@ -37,7 +37,8 @@ class FileUploadService extends BaseService
      * Store an uploaded binary and register a SourceFile row for it.
      *
      * @param  array<string, mixed>  $options  validated request options: external_ref,
-     *                                         language, metadata, metadata_schema
+     *                                         language, metadata, metadata_schema,
+     *                                         project_id, source_type_id
      * @param  string|null  $creatorId  API key id auto-filled into created_by
      *
      * @throws FileUploadException
@@ -97,6 +98,8 @@ class FileUploadService extends BaseService
             'checksum_sha256' => $sha256,
             'language' => $options['language'] ?? 'fa',
             'metadata' => $metadata,
+            'project_id' => $options['project_id'] ?? null,
+            'source_type_id' => $options['source_type_id'] ?? null,
             'processing_status' => 'registered',
             'created_by' => $creatorId,
         ]);

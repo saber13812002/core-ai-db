@@ -32,6 +32,8 @@ class StoreSourceFileRequest extends FormRequest
             'language' => ['nullable', 'string', 'max:10'],
             'metadata' => ['nullable', 'array', $this->schemaValidationRule()],
             'metadata_schema_id' => ['nullable', 'uuid', 'exists:metadata_schemas,id'],
+            'project_id' => ['nullable', 'uuid', 'exists:projects,id'],
+            'source_type_id' => ['nullable', 'integer', 'exists:source_types,id'],
             'human_approved' => ['boolean'],
             'human_approved_by' => ['nullable', 'uuid'],
             'human_approved_at' => ['nullable', 'date'],

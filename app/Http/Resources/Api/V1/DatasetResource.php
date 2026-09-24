@@ -31,6 +31,13 @@ class DatasetResource extends JsonResource
             ]),
             'filter_criteria' => $this->filter_criteria,
             'status' => $this->status,
+            'version_number' => $this->version_number,
+            'previous_dataset_id' => $this->previous_dataset_id,
+            'previous_dataset' => $this->whenLoaded('previousDataset', fn ($rel): array => [
+                'id' => $rel->id,
+                'name' => $rel->name,
+                'version_number' => $rel->version_number,
+            ]),
             'total_items' => $this->total_items,
             'train_count' => $this->train_count,
             'validation_count' => $this->validation_count,

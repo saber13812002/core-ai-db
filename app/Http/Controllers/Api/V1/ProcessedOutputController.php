@@ -25,7 +25,12 @@ class ProcessedOutputController extends Controller
 
     public function index(Request $request): Response
     {
-        $paginator = $this->service->list($request->integer('per_page', 15));
+        $paginator = $this->service->listWithFilters(
+            $request->integer('output_type_id') ?: null,
+            $request->input('source_file_id'),
+            $request->input('job_id'),
+            $request->integer('per_page', 15),
+        );
         $paginator->getCollection()->load($this->eagerLoad());
 
         return ProcessedOutputResource::collection($paginator)->response();

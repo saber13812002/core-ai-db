@@ -25,6 +25,8 @@ class UploadSourceFileRequest extends FormRequest
             'language' => ['nullable', 'string', 'max:10'],
             'metadata' => ['nullable', 'array'],
             'metadata_schema' => ['nullable', 'string', 'max:200'],
+            'project_id' => ['nullable', 'uuid', 'exists:projects,id'],
+            'source_type_id' => ['nullable', 'integer', 'exists:source_types,id'],
         ];
     }
 }

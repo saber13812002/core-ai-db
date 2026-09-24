@@ -20,7 +20,7 @@ class DatasetController extends Controller
      */
     private function eagerLoad(): array
     {
-        return ['targetOutputType'];
+        return ['targetOutputType', 'previousDataset'];
     }
 
     public function index(Request $request): Response

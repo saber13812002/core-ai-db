@@ -35,6 +35,14 @@ class ModelEvaluationResource extends JsonResource
             'evaluation_type' => $this->evaluation_type,
             'overall_score' => $this->overall_score,
             'metrics' => $this->metrics,
+            'metric_rows' => $this->whenLoaded('metricRows', fn ($rel): array => $rel->map(fn ($metric) => [
+                'id' => $metric->id,
+                'metric_name' => $metric->metric_name,
+                'metric_prompt_id' => $metric->metric_prompt_id,
+                'score' => $metric->score,
+                'judge_model_id' => $metric->judge_model_id,
+                'evaluated_at' => $metric->evaluated_at,
+            ])->all()),
             'baseline_model_id' => $this->baseline_model_id,
             'baseline_model' => $this->whenLoaded('baselineModel', fn (TrainedModel $rel): array => [
                 'id' => $rel->id,

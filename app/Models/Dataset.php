@@ -23,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property int|null $target_output_type_id
  * @property array<string, mixed>|null $filter_criteria
  * @property string $status
+ * @property int $version_number
+ * @property string|null $previous_dataset_id
  * @property int $total_items
  * @property int $train_count
  * @property int $validation_count
@@ -34,7 +36,8 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'name', 'description', 'purpose', 'target_model_type', 'target_output_type_id',
-    'filter_criteria', 'status', 'total_items', 'train_count', 'validation_count',
+    'filter_criteria', 'status', 'version_number', 'previous_dataset_id',
+    'total_items', 'train_count', 'validation_count',
     'test_count', 'storage_path', 'created_by',
 ])]
 #[Table(name: 'datasets')]
@@ -52,6 +55,7 @@ class Dataset extends Model
     {
         return [
             'filter_criteria' => 'array',
+            'version_number' => 'integer',
             'total_items' => 'integer',
             'train_count' => 'integer',
             'validation_count' => 'integer',
@@ -65,6 +69,14 @@ class Dataset extends Model
     public function targetOutputType(): BelongsTo
     {
         return $this->belongsTo(OutputType::class, 'target_output_type_id');
+    }
+
+    /**
+     * @return BelongsTo<Dataset, $this>
+     */
+    public function previousDataset(): BelongsTo
+    {
+        return $this->belongsTo(Dataset::class, 'previous_dataset_id');
     }
 
     /**

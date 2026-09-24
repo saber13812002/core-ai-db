@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Project;
 use App\Models\SourceFile;
+use App\Models\SourceType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -39,7 +41,21 @@ class SourceFileFactory extends Factory
             'processing_status' => 'pending',
             'version_number' => 1,
             'is_latest' => true,
+            'project_id' => null,
+            'source_type_id' => null,
         ];
+    }
+
+    public function withProjectAndType(): static
+    {
+        return $this->state([
+            'project_id' => Project::factory(),
+            'source_type_id' => fn (array $attributes) => match ($attributes['file_type']) {
+                'mp3', 'wav', 'm4a' => SourceType::firstOrCreate(['code' => 'audio'], ['label_fa' => 'صوت'])->id,
+                'mp4', 'mkv' => SourceType::firstOrCreate(['code' => 'video'], ['label_fa' => 'ویدیو'])->id,
+                default => SourceType::firstOrCreate(['code' => $attributes['file_type']], ['label_fa' => ucfirst($attributes['file_type'])])->id,
+            },
+        ]);
     }
 
     public function approved(): static

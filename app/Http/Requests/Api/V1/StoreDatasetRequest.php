@@ -25,6 +25,8 @@ class StoreDatasetRequest extends FormRequest
             'target_output_type_id' => ['nullable', 'integer', 'exists:output_types,id'],
             'filter_criteria' => ['nullable', 'array'],
             'status' => ['nullable', 'string', 'max:50', Rule::in(['building', 'ready', 'archived'])],
+            'version_number' => ['nullable', 'integer', 'min:1'],
+            'previous_dataset_id' => ['nullable', 'uuid', 'exists:datasets,id'],
             'total_items' => ['nullable', 'integer', 'min:0'],
             'train_count' => ['nullable', 'integer', 'min:0'],
             'validation_count' => ['nullable', 'integer', 'min:0'],

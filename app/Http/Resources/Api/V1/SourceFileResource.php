@@ -36,6 +36,17 @@ class SourceFileResource extends JsonResource
                 'name' => $rel->name,
                 'scope' => $rel->scope,
             ]),
+            'project_id' => $this->project_id,
+            'project' => $this->whenLoaded('project', fn ($rel): array => [
+                'id' => $rel->id,
+                'name' => $rel->name,
+            ]),
+            'source_type_id' => $this->source_type_id,
+            'source_type' => $this->whenLoaded('sourceType', fn ($rel): array => [
+                'id' => $rel->id,
+                'code' => $rel->code,
+                'label_fa' => $rel->label_fa,
+            ]),
             'human_approved' => $this->human_approved,
             'human_approved_by' => $this->human_approved_by,
             'human_approved_at' => $this->human_approved_at,

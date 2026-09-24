@@ -44,7 +44,14 @@ abstract class BaseRepository
 
     public function create(array $attributes): Model
     {
-        return $this->query()->create($attributes);
+        $record = $this->query()->create($attributes);
+
+        // Re-hydrate so callers (and the response resources they render)
+        // see database defaults — status, queued_at, version_number, … —
+        // instead of the null in-memory attributes for omitted fields.
+        $record->refresh();
+
+        return $record;
     }
 
     public function update(string|int $id, array $attributes): Model

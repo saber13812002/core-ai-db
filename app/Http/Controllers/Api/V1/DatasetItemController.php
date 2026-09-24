@@ -25,7 +25,11 @@ class DatasetItemController extends Controller
 
     public function index(Request $request): Response
     {
-        $paginator = $this->service->list($request->integer('per_page', 15));
+        $paginator = $this->service->listWithFilters(
+            $request->input('dataset_id'),
+            $request->input('split'),
+            $request->integer('per_page', 15),
+        );
         $paginator->getCollection()->load($this->eagerLoad());
 
         return DatasetItemResource::collection($paginator)->response();
