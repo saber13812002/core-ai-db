@@ -1,0 +1,48 @@
+# CI/CD pipeline — core-ai-db (هسته‌ی دیتابیس مرکز AI factory)
+#
+# Runner:  server52  (GitLab Runner docker-executor on 172.20.1.52, tag "server52")
+# Image:   php:8.4    (Debian; ships pdo_sqlite/sqlite3/mbstring/dom/xml — no Postgres/Redis needed,
+#                      the suite runs on SQLite :memory: exactly like locally)
+#
+# The whole "just works" contract: `composer install` -> Pint style gate -> full test suite.
+# Tests are on an in-memory database, so no service containers are required.
+
+image: php:8.4
+
+default:
+  tags:
+    - server52
+  timeout: 25m
+  variables:
+    # Random, self-contained key so the pipeline runs without any project CI/CD variable.
+    # APP_KEY is only valid inside this ephemeral container — it is not a real secret.
+    APP_KEY: "base64:WelZGm3i6Zr1ZGrb/LV34fHLkyJRgu/MxpDnZlCY4Nc="
+    COMPOSER_PROCESS_TIMEOUT: "1200"
+    # Run as a plain user; composer refuses to run as root otherwise.
+    COMPOSER_ALLOW_SUPERUSER: "1"
+
+stages:
+  - test
+
+.test:base:
+  stage: test
+  before_script:
+    # php:8.4 ships without zip/unzip/git — composer needs them to fetch dist archives.
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends git unzip zip ca-certificates
+    - curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
+    - php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer --quiet
+    - composer --version
+
+test-php:
+  extends: .test:base
+  script:
+    - echo "PHP: $(php -v | head -1)"
+    - composer install --no-interaction --no-progress --prefer-dist
+    # Style gate: the codebase must be Pint-clean.
+    - php vendor/bin/pint --test --format agent
+    # Full suite (Unit + Feature, SQLite :memory:). Uses phpunit directly for a clean
+    # "OK (N tests, M assertions)" signal — `artisan test` (Collision) surfaces PHP 8.4
+    # deprecation notices as per-test warnings, which is noise for CI.
+    - php artisan config:clear --ansi
+    - php vendor/bin/phpunit --no-coverage
